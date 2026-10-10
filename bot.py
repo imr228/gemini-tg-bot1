@@ -1,4 +1,3 @@
-aiohttp
 import asyncio
 import os
 import traceback
@@ -13,7 +12,6 @@ import requests
 TELEGRAM_BOT_TOKEN = "8822279040:AAG7CUQhJqHodB8d2N1ANqOQAR9DXJQQaqg"
 GEMINI_API_KEY = "AQ.Ab8RN6JqQOWi4NLLaI_qkVhl8R3Ld5vbpGx3j_vmHWqqt8iuKw"
 
-# Прописываем ключ в окружение, чтобы Google Cloud SDK его подхватил автоматически
 os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -43,14 +41,13 @@ async def send_branded_message(
     fallback_text = f"{text}\n\nby @ghshuy 🔥"
     if isinstance(message_or_callback, types.CallbackQuery):
       await message_or_callback.message.edit_text(
-          fallback_text, reply_markup=fallback_text
+          fallback_text, reply_markup=reply_markup
       )
     else:
       await message_or_callback.answer(fallback_text, reply_markup=fallback_text)
 
 
 def direct_rest_generate(prompt: str):
-  """Прямой обход SDK через REST API с правильными заголовками для AQ-токенов"""
   url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
   headers = {
       "Authorization": f"Bearer {GEMINI_API_KEY}",
@@ -181,7 +178,6 @@ async def chat_handler(message: types.Message):
     await send_branded_message(message, f"❌ Ошибка: {e}")
 
 
-# --- Веб-заглушка для Render ---
 async def handle(request):
   return web.Response(text="Bot is running!")
 
@@ -199,7 +195,7 @@ async def web_server():
 
 async def main():
   await web_server()
-  print("Бот успешно запущен через REST API с Bearer-токеном!")
+  print("Бот успешно запущен!")
   await dp.start_polling(bot)
 
 
