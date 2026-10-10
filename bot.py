@@ -3,21 +3,21 @@ import traceback
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from google import genai
+import google.generativeai as genai
 
 # --- ТВОИ КЛЮЧИ ---
 TELEGRAM_BOT_TOKEN = "8822279040:AAG7CUQhJqHodB8d2N1ANqOQAR9DXJQQaqg"
 GEMINI_API_KEY = "AQ.Ab8RN6Jpg5d0ogOEcOaYQjG6eXt7ncdsDVk96Qmp7u4UzhC1ew"
 
-# Инициализация Gemini (используем асинхронный клиент .aio для скорости)
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
+# Настройка старого доброго стабильного SDK, который не капризничает на серверах
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # Инициализация бота
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
 
 
-# Функция брендинга
 async def send_branded_message(
     message_or_callback, text: str, reply_markup=None
 ):
@@ -41,16 +41,13 @@ async def send_branded_message(
           fallback_text, reply_markup=reply_markup
       )
     else:
-      await message_or_callback.answer(fallback_text, reply_markup=reply_markup)
+      await message_or_callback.answer(fallback_text, reply_markup=fallback_text)
 
 
-# Молниеносная асинхронная проверка связи через .aio
 async def check_gemini_status():
   try:
     response = await asyncio.wait_for(
-        ai_client.aio.models.generate_content(
-            model="gemini-3.8-flash", contents="ping"
-        ),
+        asyncio.to_thread(model.generate_content, "ping"),
         timeout=8.0,
     )
     return bool(response and response.text)
@@ -139,12 +136,8 @@ async def chat_handler(message: types.Message):
     return
 
   try:
-    # Прямой асинхронный запрос без потоков — работает значительно быстрее!
     response = await asyncio.wait_for(
-        ai_client.aio.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=message.text,
-        ),
+        asyncio.to_thread(model.generate_content, message.text),
         timeout=15.0,
     )
 
@@ -167,10 +160,10 @@ async def chat_handler(message: types.Message):
 
 
 async def main():
-  print("Бот успешно запущен и работает в async-режиме!")
+  print("Бот успешно запущен на стабильном SDK!")
   await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
   asyncio.run(main())
-  
+    
