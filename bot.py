@@ -9,7 +9,7 @@ import google.generativeai as genai
 
 # --- ТВОИ КЛЮЧИ ---
 TELEGRAM_BOT_TOKEN = "8822279040:AAG7CUQhJqHodB8d2N1ANqOQAR9DXJQQaqg"
-GEMINI_API_KEY = "AQ.Ab8RN6Jpg5d0ogOEcOaYQjG6eXt7ncdsDVk96Qmp7u4UzhC1ew"
+GEMINI_API_KEY = "AQ.Ab8RN6KH2hQX1flqANO5GM6trLphEpPHJQXohJIwq8zyHnUj4A"
 
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
