@@ -1,0 +1,176 @@
+import asyncio
+import traceback
+from aiogram import Bot, Dispatcher, F, types
+from aiogram.filters import Command
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from google import genai
+
+# --- ТВОИ КЛЮЧИ ---
+TELEGRAM_BOT_TOKEN = "8822279040:AAG7CUQhJqHodB8d2N1ANqOQAR9DXJQQaqg"
+GEMINI_API_KEY = "AQ.Ab8RN6Jpg5d0ogOEcOaYQjG6eXt7ncdsDVk96Qmp7u4UzhC1ew"
+
+# Инициализация Gemini (используем асинхронный клиент .aio для скорости)
+ai_client = genai.Client(api_key=GEMINI_API_KEY)
+
+# Инициализация бота
+bot = Bot(token=TELEGRAM_BOT_TOKEN)
+dp = Dispatcher()
+
+
+# Функция брендинга
+async def send_branded_message(
+    message_or_callback, text: str, reply_markup=None
+):
+  branded_text = f"{text}\n\n<b>by @ghshuy 🔥</b>"
+  parse_mode = "HTML"
+
+  try:
+    if isinstance(message_or_callback, types.CallbackQuery):
+      await message_or_callback.message.edit_text(
+          branded_text, reply_markup=reply_markup, parse_mode=parse_mode
+      )
+    else:
+      await message_or_callback.answer(
+          branded_text, reply_markup=reply_markup, parse_mode=parse_mode
+      )
+  except Exception as e:
+    print("Ошибка отправки:", e)
+    fallback_text = f"{text}\n\nby @ghshuy 🔥"
+    if isinstance(message_or_callback, types.CallbackQuery):
+      await message_or_callback.message.edit_text(
+          fallback_text, reply_markup=reply_markup
+      )
+    else:
+      await message_or_callback.answer(fallback_text, reply_markup=reply_markup)
+
+
+# Молниеносная асинхронная проверка связи через .aio
+async def check_gemini_status():
+  try:
+    response = await asyncio.wait_for(
+        ai_client.aio.models.generate_content(
+            model="gemini-3.8-flash", contents="ping"
+        ),
+        timeout=8.0,
+    )
+    return bool(response and response.text)
+  except Exception as e:
+    print("\n--- ОШИБКА ПРИ ПРОВЕРКЕ GEMINI ---")
+    traceback.print_exc()
+    print("----------------------------------\n")
+    return False
+
+
+def get_check_keyboard():
+  return InlineKeyboardMarkup(
+      inline_keyboard=[
+          [
+              InlineKeyboardButton(
+                  text="Проверка работоспособности",
+                  callback_data="check_availability",
+              )
+          ]
+      ]
+  )
+
+
+def get_active_keyboard():
+  return InlineKeyboardMarkup(
+      inline_keyboard=[
+          [
+              InlineKeyboardButton(
+                  text="Начало работы", callback_data="start_chatting"
+              )
+          ]
+      ]
+  )
+
+
+def get_inactive_keyboard():
+  return InlineKeyboardMarkup(
+      inline_keyboard=[
+          [
+              InlineKeyboardButton(
+                  text="Повторная проверка", callback_data="check_availability"
+              )
+          ]
+      ]
+  )
+
+
+@dp.message(Command("start"))
+async def start_handler(message: types.Message):
+  text = (
+      "Google Gemini bot version\n\n"
+      "Проверь пожалуйста, работет ли Gemini"
+  )
+  await send_branded_message(message, text, reply_markup=get_check_keyboard())
+
+
+@dp.callback_query(F.data == "check_availability")
+async def check_availability_handler(callback: types.CallbackQuery):
+  await callback.answer("Проверяем связь...")
+  await send_branded_message(callback, "🔄 Идет проверка связи с Gemini...")
+
+  is_working = await check_gemini_status()
+
+  if is_working:
+    text = "Gemini проверен на работоспособность\n\nСТАТУС — АКТИВЕН✅"
+    await send_branded_message(callback, text, reply_markup=get_active_keyboard())
+  else:
+    text = "Gemini проверен на работоспособность\n\nСТАТУС — НЕАКТИВЕН❌"
+    await send_branded_message(
+        callback, text, reply_markup=get_inactive_keyboard()
+    )
+
+
+@dp.callback_query(F.data == "start_chatting")
+async def start_chatting_handler(callback: types.CallbackQuery):
+  await callback.answer()
+  text = "Что хотите узнать\n\n<i>(Пиши любые вопросы прямо сюда!)</i>"
+  await send_branded_message(callback.message, text)
+
+
+@dp.message()
+async def chat_handler(message: types.Message):
+  if message.text and message.text.startswith("/"):
+    return
+  if not message.text:
+    return
+
+  try:
+    # Прямой асинхронный запрос без потоков — работает значительно быстрее!
+    response = await asyncio.wait_for(
+        ai_client.aio.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=message.text,
+        ),
+        timeout=15.0,
+    )
+
+    if response and response.text:
+      await send_branded_message(message, response.text)
+    else:
+      await send_branded_message(
+          message, "⚠️ Нейронка пришла пустой, попробуй еще раз."
+      )
+
+  except asyncio.TimeoutError:
+    await send_branded_message(
+        message, "⏳ Превышено время ожидания ответа от Gemini (таймаут сети)."
+    )
+  except Exception as e:
+    print("\n--- ОШИБКА В ЧАТЕ ---")
+    traceback.print_exc()
+    print("---------------------\n")
+    await send_branded_message(message, f"❌ Ошибка: {e}")
+
+
+async def main():
+  print("Бот успешно запущен и работает в async-режиме!")
+  await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+  asyncio.run(main())
+  
