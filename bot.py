@@ -1,5 +1,7 @@
 import asyncio
+import os
 import traceback
+from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -9,11 +11,9 @@ import google.generativeai as genai
 TELEGRAM_BOT_TOKEN = "8822279040:AAG7CUQhJqHodB8d2N1ANqOQAR9DXJQQaqg"
 GEMINI_API_KEY = "AQ.Ab8RN6Jpg5d0ogOEcOaYQjG6eXt7ncdsDVk96Qmp7u4UzhC1ew"
 
-# Настройка старого доброго стабильного SDK, который не капризничает на серверах
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# Инициализация бота
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
 
@@ -159,11 +159,28 @@ async def chat_handler(message: types.Message):
     await send_branded_message(message, f"❌ Ошибка: {e}")
 
 
+# --- Заглушка веб-сервера для Render (чтобы порт был открыт) ---
+async def handle(request):
+  return web.Response(text="Bot is running!")
+
+
+async def web_server():
+  app = web.Application()
+  app.router.add_get("/", handle)
+  runner = web.AppRunner(app)
+  await runner.setup()
+  port = int(os.environ.get("PORT", 10000))
+  site = web.TCPSite(runner, "0.0.0.0", port)
+  await site.start()
+  print(f"Веб-заглушка запущена на порту {port}")
+
+
 async def main():
+  # Запускаем и веб-сервер для Render, и самого телеграм-бота одновременно
+  await web_server()
   print("Бот успешно запущен на стабильном SDK!")
   await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
   asyncio.run(main())
-    
