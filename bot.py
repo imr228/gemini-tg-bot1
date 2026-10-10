@@ -5,15 +5,16 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from google import genai
+import google.generativeai as genai
 
-# --- ТВОЙ КЛЮЧ ---
+# --- ТВОИ КЛЮЧИ ---
 TELEGRAM_BOT_TOKEN = "8822279040:AAG7CUQhJqHodB8d2N1ANqOQAR9DXJQQaqg"
 GEMINI_API_KEY = "AQ.Ab8RN6KH2hQX1flqANO5GM6trLphEpPHJQXohJIwq8zyHnUj4A"
 
-# Инициализация нового клиента Google GenAI
-client = genai.Client(api_key=GEMINI_API_KEY)
+# Настройка классического SDK
+genai.configure(api_key=GEMINI_API_KEY)
 MODEL_NAME = "gemini-2.5-flash"
+model = genai.GenerativeModel(MODEL_NAME)
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
@@ -48,11 +49,7 @@ async def send_branded_message(
 async def check_gemini_status():
   try:
     response = await asyncio.wait_for(
-        asyncio.to_thread(
-            client.models.generate_content,
-            model=MODEL_NAME,
-            contents="ping",
-        ),
+        asyncio.to_thread(model.generate_content, "ping"),
         timeout=8.0,
     )
     return bool(response and response.text)
@@ -142,11 +139,7 @@ async def chat_handler(message: types.Message):
 
   try:
     response = await asyncio.wait_for(
-        asyncio.to_thread(
-            client.models.generate_content,
-            model=MODEL_NAME,
-            contents=message.text,
-        ),
+        asyncio.to_thread(model.generate_content, message.text),
         timeout=15.0,
     )
 
@@ -186,7 +179,7 @@ async def web_server():
 
 async def main():
   await web_server()
-  print("Бот успешно запущен!")
+  print("Бот успешно запущен на классическом SDK!")
   await dp.start_polling(bot)
 
 
