@@ -5,14 +5,15 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-import google.generativeai as genai
+from google import genai
 
-# --- ТВОИ КЛЮЧИ ---
+# --- ТВОЙ КЛЮЧ ---
 TELEGRAM_BOT_TOKEN = "8822279040:AAG7CUQhJqHodB8d2N1ANqOQAR9DXJQQaqg"
 GEMINI_API_KEY = "AQ.Ab8RN6KH2hQX1flqANO5GM6trLphEpPHJQXohJIwq8zyHnUj4A"
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+# Инициализация нового клиента Google GenAI
+client = genai.Client(api_key=GEMINI_API_KEY)
+MODEL_NAME = "gemini-2.5-flash"
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
@@ -47,7 +48,11 @@ async def send_branded_message(
 async def check_gemini_status():
   try:
     response = await asyncio.wait_for(
-        asyncio.to_thread(model.generate_content, "ping"),
+        asyncio.to_thread(
+            client.models.generate_content,
+            model=MODEL_NAME,
+            contents="ping",
+        ),
         timeout=8.0,
     )
     return bool(response and response.text)
@@ -137,7 +142,11 @@ async def chat_handler(message: types.Message):
 
   try:
     response = await asyncio.wait_for(
-        asyncio.to_thread(model.generate_content, message.text),
+        asyncio.to_thread(
+            client.models.generate_content,
+            model=MODEL_NAME,
+            contents=message.text,
+        ),
         timeout=15.0,
     )
 
@@ -159,7 +168,7 @@ async def chat_handler(message: types.Message):
     await send_branded_message(message, f"❌ Ошибка: {e}")
 
 
-# --- Заглушка веб-сервера для Render (чтобы порт был открыт) ---
+# --- Веб-заглушка для Render ---
 async def handle(request):
   return web.Response(text="Bot is running!")
 
@@ -176,11 +185,11 @@ async def web_server():
 
 
 async def main():
-  # Запускаем и веб-сервер для Render, и самого телеграм-бота одновременно
   await web_server()
-  print("Бот успешно запущен на стабильном SDK!")
+  print("Бот успешно запущен!")
   await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
   asyncio.run(main())
+    
